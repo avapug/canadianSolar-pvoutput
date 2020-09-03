@@ -8,7 +8,6 @@ Inverters=1
 # no weather will be read, and tried uploaded to 
 # pvoutput.org - together with your energy data.
 OWMKEY=<fill with your OWMKEY>
-Latitude=yy.yy
-Longitude=-xx.xx
+CityID=<fill with your City ID>
 # Set your timezone string so pytz can grab your localtime inside docker
 TimeZone=America/Sao_Paulo
