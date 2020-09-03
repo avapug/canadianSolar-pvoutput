@@ -45,7 +45,7 @@ class Inverter(object):
         #self.vac1 = 0.0    # Vac1 // Output voltage 1 channel (V)
         self.eactoday = 0   # EacToday // Electricity of the day (kWh)
         self.eactotal = 0   # EacTotal // Cumulative power generation (kWh)
-        self.temp5 = 0      # Temp5
+        self.temp1 = 0      # Inverter temperature
         self.cmo_str = ''
 
     def read_inputs(self):
@@ -70,7 +70,7 @@ class Inverter(object):
                 #self.vac1 = read_single(rr, 38)
                 self.eactoday = read_single(rr, 54)
                 self.eactotal = read_single(rr, 56)
-                self.temp5 = read_single(rr, 97)
+                self.temp1 = read_single(rr, 93)
 
                 #print('{:10}'.format('Date:'), self.date)
                 #if self.status == 0: print('{:10}'.format('Status:'), 'Waiting')
@@ -82,7 +82,7 @@ class Inverter(object):
                 #print('{:10}'.format('Vac1:'), self.vac1, 'V')
                 #print('{:10}'.format('EacToday:'), self.eactoday, 'kWh')
                 #print('{:10}'.format('EacTotal:'), self.eactotal, 'kWh')
-                #print('{:10}'.format('Temp:'), self.temp5, 'c')
+                #print('{:10}'.format('Temp:'), self.temp1, 'c')
             else:
                 self.status = -1
                 ret = False
@@ -186,7 +186,7 @@ class PVOutputAPI(object):
         print(payload)
         self.add_status(payload, system_id)
 
-    def send_extend(self, date, eactoday=None, eactotal=None, ppv=None, pac=None, vpv=None, temp5=None, system_id=None):
+    def send_extend(self, date, eactoday=None, eactotal=None, ppv=None, pac=None, vpv=None, temp1=None, system_id=None):
         # format status payload
         payload = {
             'd': date.strftime('%Y%m%d'),
@@ -197,7 +197,7 @@ class PVOutputAPI(object):
         payload['v9'] = ppv
         payload['v10'] = pac
         payload['v11'] = vpv
-        payload['v12'] = temp5
+        payload['v12'] = temp1
 
         # Send status
         print(payload)
@@ -238,7 +238,7 @@ def main_loop():
 
                 for x in range(3):
                   pvo.send_status(date=inv.date, eactoday=inv.eactoday, pac=inv.pac, owm_temp=owm_temp, vpv=inv.vpv)
-                  pvo.send_extend(date=inv.date, eactoday=inv.eactoday, eactotal=inv.eactotal, ppv=inv.ppv, pac=inv.pac, vpv=inv.vpv, temp5=inv.temp5)
+                  pvo.send_extend(date=inv.date, eactoday=inv.eactoday, eactotal=inv.eactotal, ppv=inv.ppv, pac=inv.pac, vpv=inv.vpv, temp1=inv.temp1)
                   sleep(5)
 
                 # sleep until next multiple of 5 minutes
