@@ -1,6 +1,9 @@
+This fork is made to work with Growatt MIN 5000TL-X and probably others in the same series.
+Check out this link to create a service. https://www.raspberrypi.com/documentation/computers/using_linux.html#creating-a-service
+
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/1a8b27961c904e8093f5adaa40ca8e8f)](https://app.codacy.com/app/jrbenito/canadianSolar-pvoutput?utm_source=github.com&utm_medium=referral&utm_content=jrbenito/canadianSolar-pvoutput&utm_campaign=Badge_Grade_Dashboard)
 
-= Canadina Solar
+= Canadian Solar
 
 This code reads registers from Canadian Solar invernter via modbus protocol over a RS-232 interface. 
 I only tested it on a CSI-3K-TL witch is much similar (probably a clone altough I have no written evidence)
