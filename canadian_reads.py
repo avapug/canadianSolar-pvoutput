@@ -222,53 +222,54 @@ def main_loop():
     pvo = PVOutputAPI(APIKEY, SYSTEMID)
 
     # start and stop monitoring (hour of the day)
-    shStart = 5
-    shStop = 21
+#    shStart = 5
+#    shStop = 21
     # Loop until end of universe
     while True:
-        if shStart <= localnow().hour < shStop:
+        print(localnow().strftime('%Y-%m-%d %H:%M'), "Running now.")
+#        if shStart <= localnow().hour < shStop:
             # get fresh temperature from OWM
-            if owm:
-                try:
-                    owm.get()
-                    owm.fresh = True
-                except Exception as e:
-                    print('Error getting weather: {}'.format(e))
-                    owm.fresh = False
+        if owm:
+            try:
+                owm.get()
+                owm.fresh = True
+            except Exception as e:
+                print('Error getting weather: {}'.format(e))
+                owm.fresh = False
 
-            # get readings from inverter, if success send  to pvoutput
-            inv.read_inputs()
-            if inv.status != -1:
-                # pvoutput(inv, owm)
-                # temperature report only if available
-                owm_temp = owm.temperature if owm and owm.fresh else None
+        # get readings from inverter, if success send  to pvoutput
+        inv.read_inputs()
+        if inv.status != -1:
+            # pvoutput(inv, owm)
+            # temperature report only if available
+            owm_temp = owm.temperature if owm and owm.fresh else None
 
-                for x in range(3):
-                  pvo.send_status(date=inv.date, epvtoday=inv.epvtoday, ppv=inv.ppv, owm_temp=owm_temp, vpv=inv.vpv)
-                  pvo.send_extend(date=inv.date, eactoday=inv.eactoday, eactotal=inv.eactotal, pactogrid=inv.pactogrid, pac=inv.pac, vac1=inv.vac1, temp1=inv.temp1)
-                  sleep(5)
+            for x in range(3):
+              pvo.send_status(date=inv.date, epvtoday=inv.epvtoday, ppv=inv.ppv, owm_temp=owm_temp, vpv=inv.vpv)
+              pvo.send_extend(date=inv.date, eactoday=inv.eactoday, eactotal=inv.eactotal, pactogrid=inv.pactogrid, pac=inv.pac, vac1=inv.vac1, temp1=inv.temp1)
+              sleep(5)
 
-                # sleep until next multiple of 5 minutes
-                min = 5 - localnow().minute % 5
-                sleep(min*60 - localnow().second)
-            else:
-                # some error
-                sleep(60)  # 1 minute before try again
+            # sleep until next multiple of 5 minutes
+            min = 5 - localnow().minute % 5
+            sleep(min*60 - localnow().second)
         else:
-            # it is too late or too early, let's sleep until next shift
-            hour = localnow().hour
-            minute = localnow().minute
-            if 24 > hour >= shStop:
-                # before midnight
-                snooze = (((shStart - hour) + 24) * 60) - minute
-            elif shStart > hour >= 0:
-                # after midnight
-                snooze = ((shStart - hour) * 60) - minute
-            print(localnow().strftime('%Y-%m-%d %H:%M') + ' - Next shift starts in ' + \
-                str(snooze) + ' minutes')
-            sys.stdout.flush()
-            snooze = snooze * 60  # seconds
-            sleep(snooze)
+            # some error
+            sleep(60)  # 1 minute before try again
+#        else:
+#            # it is too late or too early, let's sleep until next shift
+#            hour = localnow().hour
+#            minute = localnow().minute
+#            if 24 > hour >= shStop:
+#                # before midnight
+#                snooze = (((shStart - hour) + 24) * 60) - minute
+#            elif shStart > hour >= 0:
+#                # after midnight
+#                snooze = ((shStart - hour) * 60) - minute
+#            print(localnow().strftime('%Y-%m-%d %H:%M') + ' - Next shift starts in ' + \
+#                str(snooze) + ' minutes')
+#            sys.stdout.flush()
+#            snooze = snooze * 60  # seconds
+#            sleep(snooze)
 
 
 if __name__ == '__main__':
