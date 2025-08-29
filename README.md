@@ -1,38 +1,90 @@
-This fork is made to work with Growatt MIN 5000TL-X and probably others in the same series.
-Check out this link to create a service. https://www.raspberrypi.com/documentation/computers/using_linux.html#creating-a-service
+# Growatt + MyEnergi PVOutput Uploader
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1a8b27961c904e8093f5adaa40ca8e8f)](https://app.codacy.com/app/jrbenito/canadianSolar-pvoutput?utm_source=github.com&utm_medium=referral&utm_content=jrbenito/canadianSolar-pvoutput&utm_campaign=Badge_Grade_Dashboard)
+This project collects and uploads live solar generation, grid import/export, house consumption, and weather data to [PVOutput.org](https://pvoutput.org), by combining:
 
-= Canadian Solar
+- **Growatt MIN 5000TL‑X** inverter (via Modbus RTU / RS-232)  
+- **MyEnergi Zappi + HARVI** devices for CT-based power monitoring  
+- **OpenWeatherMap** for local temperature  
+- Logic adapted from the **mec GitHub repository** for reliable Zappi integrations
 
-This code reads registers from Canadian Solar invernter via modbus protocol over a RS-232 interface. 
-I only tested it on a CSI-3K-TL witch is much similar (probably a clone altough I have no written evidence)
-of Growatt inverters. Besides very similar hardware and display interface look and feel, modbus protocol are identical
-(exception to some unimplemented features like clock).
+---
 
-Although there is a function to synchronize inverter's clock based on comments posted to the Steffen blog, this function 
-was never tested since Canadian opted to not implement clock features into CSI-3K-TL.
+## Features
 
-== pvoutput
+- Reads **Growatt inverter data** (Pac, VPV, EacToday, temperature, etc.)  
+- Reads **live PV generation and grid readings** via HARVI CT clamps  
+- Reads **import/export/generation totals** via Zappi API  
+- Fetches **temperature from OpenWeatherMap**  
+- Uploads complete dataset (v1–v12) to PVOutput.org every 5 minutes  
+- Maintains a small state file to compute power/consumption deltas properly  
+- Designed to run continuously via a service or wrapper script
 
-Values read from inverter are upload to [pvoutput.org](https://pvoutput.org) and this code assumes the account has "donantion" features enabled.
-If you do not want to donate just remove extra features (v7~v12 paramenters).
+---
 
-Optionally this code reads local temperature from [OpenWheatherMap](https://openweathermap.org)
+## Configuration
 
-== Usage
+Put the following in `pvo_config.json` (all fields required):
 
-=== Docker
- 
-For portability and also for simplify development, I run this code into a docker container. Dockerfile is very simple and provided.
-
-To build docker image just run `docker build -t canadian-pvoutput .`
-
-To run in docker create a container with `docker run --restart always --name="pvoutput" -d -i --device=/dev/ttyUSB0 --net=host -v /home/jrbenito/canadian-pvoutput:/app -w /app jrbenito/canadian-pvoutput ./pvoutput.sh`. Script `pvoutput.sh` is a wrapper to run python script continuously if it fails. Docker will automaticaly restart this container in case of computer reboot or container fails.
-
-=== Direct (no docker)
-
+```json
+{
+  "SYSTEMID": "your-pvoutput-system-id",
+  "APIKEY": "your-pvoutput-api-key",
+  "OWMKEY": "your-openweather-api-key",
+  "CityID": "your-openweather-city-id",
+  "TimeZone": "Australia/Sydney",
+  "InverterPort": "/dev/ttyUSB0",
+  "DeviceId": 1,
+  "ZappiUser": "your-zappi-serial",
+  "ZappiPassword": "your-zappi-password",
+  "HarviGridSno": "12345678",
+  "HarviGenSno": "12345678"
+}
 ```
-$ pip install -r requirements.txt
-$ ./pvoutput.sh
-```
+
+---
+
+## Usage
+
+1. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Run Manually**
+   ```bash
+   ./pvoutput.py
+   ```
+
+3. **Run as a Service**
+
+   Use a wrapper like:
+
+   ```bash
+   #!/bin/bash
+   while true; do
+     /root/zappi-env/bin/python3 -u /root/pvoutput/pvoutput.py
+     echo "Script exited—restarting in 60s"
+     sleep 60
+   done
+   ```
+
+   And invoke it via systemd with:
+   ```ini
+   [Service]
+   ExecStart=/path/to/pvoutput.sh
+   Restart=always
+   ```
+
+---
+
+## Notes
+
+- Requires PVOutput donation-enabled account for extended data (v7–v12).  
+- Harvi data is the authoritative live value source (better than inverter alone).  
+- OpenWeatherMap configuration is mandatory.  
+
+---
+
+## Acknowledgements
+
+This integration adapts **Zappi and Harvi data handling** from the [mec GitHub repository](https://github.com/your-org/mec) — many thanks for their pioneering work in the MyEnergi ecosystem.
