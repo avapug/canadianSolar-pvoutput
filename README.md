@@ -1,90 +1,133 @@
-# Growatt + MyEnergi PVOutput Uploader
+PVOutput Uploader for Growatt MIN 5000TL‑X + MyEnergi (Zappi/Harvi)
+==================================================================
 
-This project collects and uploads live solar generation, grid import/export, house consumption, and weather data to [PVOutput.org](https://pvoutput.org), by combining:
+Overview
+--------
+This project uploads your solar generation and household consumption data to
+PVOutput.org. It combines:
+1) Live inverter data from a Growatt MIN 5000TL‑X (and likely similar models) via
+   Modbus/RTU over a serial adapter.
+2) MyEnergi (Zappi/Harvi) data for import/export and live PV/house figures.
+3) Weather temperature from OpenWeatherMap (OWM).
 
-- **Growatt MIN 5000TL‑X** inverter (via Modbus RTU / RS-232)  
-- **MyEnergi Zappi + HARVI** devices for CT-based power monitoring  
-- **OpenWeatherMap** for local temperature  
-- Logic adapted from the **mec GitHub repository** for reliable Zappi integrations
+The uploader posts PVOutput v1–v12 fields. We *only* submit v3 (cumulative energy
+consumed) and let PVOutput derive v4 (instantaneous power used). Live power (v2/v10)
+and export (v9) prefer Harvi readings when available, falling back to inverter/
+derived values.
 
----
+What this fork does now
+-----------------------
+- Talks to the Growatt inverter over Modbus/RTU using pymodbus (reads power,
+  energy today/total, inverter temp/voltage, etc).
+- Queries MyEnergi using a tiny, self‑contained client (`zappi_client_local.py`)
+  that implements the same digest‑auth + ASN hand‑off behavior as the MEC tools.
+- Uses two HARVI devices (one on the grid, one on the PV) for accurate live
+  power readings when available.
+- Uploads to PVOutput every 5 minutes, aligned to wall‑clock boundaries.
+- Persists a small state JSON under /tmp to compute clean deltas across runs.
+- Uses OpenWeatherMap for ambient temperature (required).
 
-## Features
+Credits
+-------
+- The MyEnergi client behavior here is informed by the excellent MEC project:
+  https://github.com/edent/mec (referenced for request flow and data layout).
+- Original Canadian Solar project foundations by Josenivaldo Benito Jr.
 
-- Reads **Growatt inverter data** (Pac, VPV, EacToday, temperature, etc.)  
-- Reads **live PV generation and grid readings** via HARVI CT clamps  
-- Reads **import/export/generation totals** via Zappi API  
-- Fetches **temperature from OpenWeatherMap**  
-- Uploads complete dataset (v1–v12) to PVOutput.org every 5 minutes  
-- Maintains a small state file to compute power/consumption deltas properly  
-- Designed to run continuously via a service or wrapper script
+Requirements
+------------
+- Python 3.9+ (3.10 recommended)
+- A serial connection to your Growatt inverter (e.g. USB‑RS485/RS232 depending on your setup)
+- A MyEnergi account with Zappi/Harvi devices
+- An OpenWeatherMap API key
+- A PVOutput API key and System ID
 
----
+Virtualenv Setup (recommended)
+------------------------------
+# create and activate a venv (example path; choose your own)
+python3 -m venv ~/zappi-env
+source ~/zappi-env/bin/activate
 
-## Configuration
+# upgrade pip and install dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
 
-Put the following in `pvo_config.json` (all fields required):
+# run the uploader
+python pvoutput.py
 
-```json
+Configuration
+-------------
+Place a JSON file named pvo_config.json next to pvoutput.py with ALL of the
+following keys (all are required):
+
 {
-  "SYSTEMID": "your-pvoutput-system-id",
-  "APIKEY": "your-pvoutput-api-key",
-  "OWMKEY": "your-openweather-api-key",
-  "CityID": "your-openweather-city-id",
-  "TimeZone": "Australia/Sydney",
-  "InverterPort": "/dev/ttyUSB0",
-  "DeviceId": 1,
-  "ZappiUser": "your-zappi-serial",
-  "ZappiPassword": "your-zappi-password",
-  "HarviGridSno": "12345678",
-  "HarviGenSno": "12345678"
+  "SYSTEMID":        "your-pvoutput-system-id",
+  "APIKEY":          "your-pvoutput-api-key",
+  "OWMKEY":          "your-openweather-api-key",
+  "CityID":          "5391959",
+  "TimeZone":        "Europe/London",
+  "InverterPort":    "/dev/ttyUSB0",
+  "DeviceId":        "1",
+  "ZappiUser":       "12345678",
+  "ZappiPassword":   "your-myenergi-password",
+  "HarviGridSno":    "2826772",
+  "HarviGenSno":     "2835761"
 }
-```
 
----
+Notes:
+- Harvi serials are used to identify the “grid” and “PV” devices for live power.
+- If a Harvi reading is unavailable, the uploader falls back to inverter/derived values.
+- CityID must be the numeric OpenWeatherMap city id.
 
-## Usage
+Running
+-------
+# from your venv, in the project directory
+python pvoutput.py
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+The script aligns to 5‑minute wall‑clock boundaries and continuously uploads.
 
-2. **Run Manually**
-   ```bash
-   ./pvoutput.py
-   ```
+Service (optional)
+------------------
+Many users prefer to run a small wrapper shell script under systemd. Example:
 
-3. **Run as a Service**
+/usr/local/bin/pvoutput.sh
+--------------------------
+#!/bin/bash
+set -euo pipefail
+while true; do
+  /root/zappi-env/bin/python3 -u /root/pvoutput/pvoutput.py
+  echo "Python crashed; sleeping 60s then restarting..."
+  sleep 60
+done
+--------------------------------
 
-   Use a wrapper like:
+Create a systemd unit that ExecStart=/usr/local/bin/pvoutput.sh so it restarts
+after errors or reboots. See Raspberry Pi docs for service creation details.
 
-   ```bash
-   #!/bin/bash
-   while true; do
-     /root/zappi-env/bin/python3 -u /root/pvoutput/pvoutput.py
-     echo "Script exited—restarting in 60s"
-     sleep 60
-   done
-   ```
+Docker (optional)
+-----------------
+A minimal Dockerfile is included. Build and run examples:
 
-   And invoke it via systemd with:
-   ```ini
-   [Service]
-   ExecStart=/path/to/pvoutput.sh
-   Restart=always
-   ```
+docker build -t pvoutput-growatt .
+docker run --restart always --name pvoutput -d -i   --device=/dev/ttyUSB0 --net=host   -v /path/to/project:/app -w /app pvoutput-growatt   bash -lc "source /app/.venv/bin/activate && python pvoutput.py"
 
----
+(Adjust device path, volumes, and env to your setup.)
 
-## Notes
+Files in this repo
+------------------
+- pvoutput.py            Main uploader loop (reads inverter + MyEnergi + OWM, posts to PVOutput)
+- zappi_client_local.py  Minimal MyEnergi client (digest auth + ASN switch; hourly + live status)
+- requirements.txt       Python dependencies
+- Dockerfile             Optional container build
+- pvo_config.json        Your local configuration (create this; not committed)
 
-- Requires PVOutput donation-enabled account for extended data (v7–v12).  
-- Harvi data is the authoritative live value source (better than inverter alone).  
-- OpenWeatherMap configuration is mandatory.  
+Troubleshooting
+---------------
+- If PVOutput shows zero or odd values for v2/v9, verify Harvi serials and CT
+  orientations. The code treats grid export as negative power from the grid CT.
+- If temperature (v5) is blank, verify OWM CityID and API key.
+- If Modbus reads fail (inverter offline at night), v1/v2 will be zero; v3 will
+  continue to reflect cumulative consumption derived from imports/exports.
 
----
-
-## Acknowledgements
-
-This integration adapts **Zappi and Harvi data handling** from the [mec GitHub repository](https://github.com/your-org/mec) — many thanks for their pioneering work in the MyEnergi ecosystem.
+License
+-------
+This fork maintains the original project’s license. See LICENSE file if present.
