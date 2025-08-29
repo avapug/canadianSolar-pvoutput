@@ -1,0 +1,13 @@
+{
+  "SYSTEMID": "your-pvoutput-system-id",
+  "APIKEY": "your-pvoutput-api-key",
+  "OWMKEY": "your-openweather-api-key",
+  "CityID": "your-openweather-city-id",
+  "TimeZone": "Australia/Sydney",
+  "InverterPort": "/dev/ttyUSB0",
+  "DeviceId": 1,
+  "ZappiUser": "your-zappi-serial",
+  "ZappiPassword": "your-zappi-password",
+  "HarviGridSno": "12345678",
+  "HarviGenSno": "12345678"
+}
